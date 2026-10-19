@@ -1,0 +1,40 @@
+# cloudflared แทน ALB + ACM: ต่อ "ออก" ไป Cloudflare เอง จึงไม่ต้องมี load balancer, inbound rule หรือ cert
+# replica แต่ละตัวคือ connector หนึ่งตัวของ tunnel เดียวกัน Cloudflare กระจาย request ให้เอง  routing (hostname → Service) อยู่ฝั่ง Cloudflare (ขั้น 3)
+# placeholder: CLOUDFLARED_REPLICAS_PLACEHOLDER → CLOUDFLARED_REPLICAS, TUNNEL_SECRET_PLACEHOLDER → TUNNEL_SECRET
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: cloudflared, labels: { app: cloudflared } }
+spec:
+  replicas: CLOUDFLARED_REPLICAS_PLACEHOLDER
+  selector: { matchLabels: { app: cloudflared } }
+  template:
+    metadata: { labels: { app: cloudflared } }
+    spec:
+      affinity:                        # พยายามวาง connector คนละ node (preferred: node น้อยกว่า replica ก็ยังรันได้)
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector: { matchLabels: { app: cloudflared } }
+      containers:
+      - name: cloudflared
+        image: cloudflare/cloudflared:latest
+        args: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]   # อ่าน token จาก env TUNNEL_TOKEN
+        env:
+        - name: TUNNEL_TOKEN
+          valueFrom: { secretKeyRef: { name: TUNNEL_SECRET_PLACEHOLDER, key: token } }
+        livenessProbe:   # /ready ตอบ 200 เมื่อต่อ Cloudflare ได้แล้ว ถ้าหลุดนาน kubelet จะ restart ให้
+          httpGet: { path: /ready, port: 2000 }
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        resources:
+          requests: { cpu: 50m, memory: 64Mi }
+          limits: { memory: 128Mi }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: cloudflared }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: cloudflared } }

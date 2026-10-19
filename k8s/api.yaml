@@ -1,0 +1,70 @@
+# hr-api (NestJS): Deployment + Service + HPA + PDB   ไฟล์นี้ไม่อ่าน .env มี placeholder ที่ common.sh:render แทนค่าตอน apply:
+#   API_IMAGE_PLACEHOLDER:APP_TAG_PLACEHOLDER → API_IMAGE:APP_TAG      API_PORT_PLACEHOLDER → API_PORT      API_HEALTH_PLACEHOLDER → API_HEALTH_PATH
+#   RDS_SECRET_PLACEHOLDER → K8S_SECRET (DB_* + POSTGRES_PRISMA_URL)   APP_SECRET_PLACEHOLDER → APP_SECRET (JWT/SMTP/AWS/Maps/CORS)
+# เส้นทาง: Cloudflare edge → tunnel → pod cloudflared → Service api → pod api → RDS
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api, labels: { app: api } }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5            # เก็บ ReplicaSet เก่าไว้ให้ ./rollback.sh (kubectl rollout undo)
+  selector: { matchLabels: { app: api } }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }   # pod ใหม่ต้อง Ready ก่อน pod เก่าถึงจะหาย → ไม่มีช่วงที่ไม่มี pod รับ request
+  template:
+    metadata: { labels: { app: api } }
+    spec:
+      topologySpreadConstraints:       # กระจาย pod คนละ node เท่าที่ทำได้ (ScheduleAnyway = node ไม่พอก็ยังรัน)
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector: { matchLabels: { app: api } }
+      containers:
+      - name: api
+        image: API_IMAGE_PLACEHOLDER:APP_TAG_PLACEHOLDER
+        ports: [{ containerPort: API_PORT_PLACEHOLDER }]
+        env:
+        - { name: PORT, value: "API_PORT_PLACEHOLDER" }
+        - { name: NODE_ENV, value: production }
+        envFrom:
+        - secretRef: { name: RDS_SECRET_PLACEHOLDER }   # DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD POSTGRES_PRISMA_URL
+        - secretRef: { name: APP_SECRET_PLACEHOLDER }   # JWT_* SMTP_* AWS_* GOOGLE_MAPS_API_KEY CORS_ALLOWED_ORIGINS
+        readinessProbe:                # ยังไม่รับ request จาก Service จนกว่า health จะตอบ 200
+          httpGet: { path: API_HEALTH_PLACEHOLDER, port: API_PORT_PLACEHOLDER }
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet: { path: API_HEALTH_PLACEHOLDER, port: API_PORT_PLACEHOLDER }
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        resources:
+          requests: { cpu: 250m, memory: 256Mi }   # HPA คิด % CPU จาก request นี้
+          limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api }
+spec:
+  selector: { app: api }
+  ports: [{ port: API_PORT_PLACEHOLDER, targetPort: API_PORT_PLACEHOLDER }]
+---
+# ขยาย pod อัตโนมัติเมื่อ CPU เฉลี่ยเกิน 60% ของ request (2 → สูงสุด 6)  connection ไป RDS = pod × DB_POOL_PER_POD
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: api }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: api }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+  - type: Resource
+    resource: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }
+---
+# ตอน drain node (เปลี่ยนเครื่อง/อัปเกรด k3s) ต้องเหลือ pod api อย่างน้อย 1 ตัวเสมอ
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: api }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: api } }

@@ -1,0 +1,66 @@
+# hr-bo (Next.js back-office): Deployment + Service + HPA + PDB   placeholder: BO_IMAGE/APP_TAG/BO_PORT/API_PORT/APP_SECRET (ดู api.yaml)
+# bo เรียก hr-api ฝั่ง server ผ่าน Service ใน cluster (BACKEND_API_URL) ส่วน browser เรียก https://DOMAIN_API ตรง
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: bo, labels: { app: bo } }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector: { matchLabels: { app: bo } }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata: { labels: { app: bo } }
+    spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector: { matchLabels: { app: bo } }
+      containers:
+      - name: bo
+        image: BO_IMAGE_PLACEHOLDER:APP_TAG_PLACEHOLDER
+        ports: [{ containerPort: BO_PORT_PLACEHOLDER }]
+        env:
+        - { name: PORT, value: "BO_PORT_PLACEHOLDER" }
+        - { name: NODE_ENV, value: production }
+        - { name: BACKEND_API_URL, value: "http://api:API_PORT_PLACEHOLDER" }   # Service api ใน namespace เดียวกัน
+        envFrom:
+        - secretRef: { name: APP_SECRET_PLACEHOLDER }   # NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ฯลฯ
+        readinessProbe:                # Next.js ตอบ 200 หรือ redirect (3xx) ก็ถือว่าพร้อม
+          httpGet: { path: /, port: BO_PORT_PLACEHOLDER }
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket: { port: BO_PORT_PLACEHOLDER }
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        resources:
+          requests: { cpu: 150m, memory: 256Mi }
+          limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bo }
+spec:
+  selector: { app: bo }
+  ports: [{ port: BO_PORT_PLACEHOLDER, targetPort: BO_PORT_PLACEHOLDER }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: bo }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: bo }
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: bo }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: bo } }

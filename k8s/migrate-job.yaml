@@ -1,0 +1,23 @@
+# Job migrate: รัน MIGRATE_CMD (prisma migrate deploy) ด้วย image ของ hr-api เวอร์ชันที่กำลังจะขึ้น ก่อน rollout ทุกครั้ง (5_deploy.sh ลบ Job เก่าแล้วสร้างใหม่)
+# backoffLimit 0 = ล้มแล้วไม่ retry ให้สคริปต์หยุด release ทันที  migration ต้องเข้ากันได้กับ pod เวอร์ชันเก่าที่ยังรันอยู่ระหว่าง rolling update (expand → migrate → contract)
+# placeholder: API_IMAGE/APP_TAG/RDS_SECRET/APP_SECRET/MIGRATE_CMD
+apiVersion: batch/v1
+kind: Job
+metadata: { name: migrate, labels: { app: migrate } }
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400       # เก็บ log ของ Job ไว้ดู 1 วันแล้วลบเอง
+  template:
+    metadata: { labels: { app: migrate } }
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: API_IMAGE_PLACEHOLDER:APP_TAG_PLACEHOLDER
+        command: ["sh", "-c", "MIGRATE_CMD_PLACEHOLDER"]
+        envFrom:
+        - secretRef: { name: RDS_SECRET_PLACEHOLDER }   # POSTGRES_PRISMA_URL
+        - secretRef: { name: APP_SECRET_PLACEHOLDER }
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { memory: 512Mi }

@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>northhr PROD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: หน้าเดียว อ่านบนลงล่าง แผนภาพเส้นทาง request → ขั้นติดตั้ง → ไฟล์ → workload/secret → release → ค่าใช้จ่าย   โทนเดียวกับ ../labs-comparison.html */
+:root{
+  --ground:#f4f5f3; --paper:#ffffff; --ink:#1b222c; --ink-2:#4b5563; --ink-3:#7c8592;
+  --line:#dde1e4; --line-2:#c9cfd5;
+  --k3s:#0f8a6d; --k3s-soft:#e2f4ee; --k3s-ink:#0b6a54;
+  --cf:#e7862b; --cf-soft:#fdeedd; --cf-ink:#8a4a10;
+  --adm:#8a4fc9; --adm-soft:#f0e8fb; --adm-ink:#5c2f8f;
+  --db:#2f6fd0; --db-soft:#e6eefb; --db-ink:#1f4c93;
+  --warn:#b4531b; --warn-soft:#fbeadf;
+  --shadow:0 1px 2px rgba(20,30,40,.06), 0 8px 24px -16px rgba(20,30,40,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#11151b; --paper:#181d25; --ink:#e7eaee; --ink-2:#aab2bd; --ink-3:#7f8894;
+    --line:#2a313b; --line-2:#3a424d;
+    --k3s:#3fc4a0; --k3s-soft:#153a31; --k3s-ink:#9fe8d2;
+    --cf:#f0a05a; --cf-soft:#3d2a16; --cf-ink:#ffd2a6;
+    --adm:#b78df0; --adm-soft:#2e2044; --adm-ink:#dcc6ff;
+    --db:#7fa8f0; --db-soft:#1b2a45; --db-ink:#c2d5ff;
+    --warn:#f0a070; --warn-soft:#3d2416;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#11151b; --paper:#181d25; --ink:#e7eaee; --ink-2:#aab2bd; --ink-3:#7f8894;
+  --line:#2a313b; --line-2:#3a424d;
+  --k3s:#3fc4a0; --k3s-soft:#153a31; --k3s-ink:#9fe8d2;
+  --cf:#f0a05a; --cf-soft:#3d2a16; --cf-ink:#ffd2a6;
+  --adm:#b78df0; --adm-soft:#2e2044; --adm-ink:#dcc6ff;
+  --db:#7fa8f0; --db-soft:#1b2a45; --db-ink:#c2d5ff;
+  --warn:#f0a070; --warn-soft:#3d2416;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--ground);color:var(--ink);font-family:"Sarabun",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;font-size:16px;line-height:1.65}
+.wrap{max-width:1120px;margin:0 auto;padding-block:40px 72px;padding-inline:20px}
+h1,h2,h3{font-family:"IBM Plex Sans Thai","Sarabun",sans-serif;text-wrap:balance;line-height:1.25;margin:0}
+h1{font-size:clamp(28px,4.2vw,40px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:clamp(21px,2.6vw,26px);font-weight:600;margin-bottom:6px}
+h3{font-size:17px;font-weight:600}
+p{margin:0}
+.lede{color:var(--ink-2);max-width:72ch;margin-top:10px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+section{margin-top:56px}
+.sec-head{display:flex;flex-direction:column;gap:4px;margin-bottom:18px}
+.sec-head p{color:var(--ink-2);max-width:76ch}
+code{font-family:"IBM Plex Mono",monospace;font-size:.9em;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:1px 5px;word-break:break-word}
+a{color:var(--k3s-ink)}
+.tag{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.05em;padding:2px 8px;border-radius:999px;font-weight:500;white-space:nowrap}
+.tag.k3s{background:var(--k3s-soft);color:var(--k3s-ink)}
+.tag.cf{background:var(--cf-soft);color:var(--cf-ink)}
+.tag.adm{background:var(--adm-soft);color:var(--adm-ink)}
+.tag.db{background:var(--db-soft);color:var(--db-ink)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+
+.route{font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--ink-2);margin-top:14px;line-height:1.8;word-break:break-word}
+.route b{color:var(--ink);font-weight:500}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px}
+.kpi{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.kpi b{display:block;font-family:"IBM Plex Sans Thai",sans-serif;font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15;word-break:break-word}
+.kpi span{font-size:12px;color:var(--ink-3)}
+
+.diagram{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px 8px;overflow-x:auto;margin-top:14px;box-shadow:var(--shadow)}
+.diagram .cap{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+.diagram svg{display:block;min-width:900px;width:100%;height:auto;font-family:"Sarabun",sans-serif}
+svg .box{fill:var(--paper);stroke:var(--line-2);stroke-width:1.2}
+svg .box.node{stroke:var(--k3s);stroke-width:1.4}
+svg .box.cf{fill:var(--cf-soft);stroke:var(--cf)}
+svg .box.db{fill:var(--db-soft);stroke:var(--db)}
+svg .box.adm{fill:var(--adm-soft);stroke:var(--adm)}
+svg .box.pod{fill:var(--k3s-soft);stroke:var(--k3s);stroke-width:1}
+svg .box.pod.cfp{fill:var(--cf-soft);stroke:var(--cf)}
+svg .lbl{fill:var(--ink);font-size:13px;font-weight:600}
+svg .sub{fill:var(--ink-3);font-size:11px;font-family:"IBM Plex Mono",monospace}
+svg .pl{fill:var(--ink);font-size:11.5px;font-family:"IBM Plex Mono",monospace}
+svg .edge{stroke:var(--ink-3);stroke-width:1.4;fill:none}
+svg .edge.in{stroke:var(--cf);stroke-width:1.8}
+svg .edge.tun{stroke:var(--cf);stroke-width:1.8;stroke-dasharray:6 4}
+svg .edge.db{stroke:var(--db);stroke-width:1.6}
+svg .edge.out{stroke:var(--k3s);stroke-dasharray:5 3}
+svg .edge.adm{stroke:var(--adm);stroke-dasharray:2 3;stroke-width:1.5}
+svg .zone{fill:none;stroke:var(--line-2);stroke-width:1;stroke-dasharray:6 4;rx:8}
+svg .zone.az{stroke:var(--line);stroke-dasharray:3 3}
+svg .zlbl{fill:var(--ink-3);font-size:11px;font-family:"IBM Plex Mono",monospace;letter-spacing:.06em}
+svg .elbl{fill:var(--ink-2);font-size:10.5px;font-family:"IBM Plex Mono",monospace}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);margin-top:4px;padding:0 4px 6px}
+.legend i{display:inline-block;width:22px;height:0;border-top:2px solid var(--ink-3);vertical-align:middle;margin-right:6px}
+.legend i.in{border-color:var(--cf)} .legend i.tun{border-color:var(--cf);border-top-style:dashed}
+.legend i.db{border-color:var(--db)} .legend i.adm{border-color:var(--adm);border-top-style:dotted} .legend i.out{border-color:var(--k3s);border-top-style:dashed}
+
+table{width:100%;border-collapse:collapse;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14.5px}
+.tbl{overflow-x:auto;margin-top:14px;border-radius:10px;box-shadow:var(--shadow)}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:"IBM Plex Sans Thai",sans-serif;font-weight:600;font-size:13px;color:var(--ink-2);background:var(--ground)}
+tr:last-child td{border-bottom:0}
+td.mono,th.mono{font-family:"IBM Plex Mono",monospace;font-size:13px;white-space:nowrap}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+td .dim{color:var(--ink-3);font-size:13px}
+
+.tree{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;margin-top:14px}
+.tree pre{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.75;overflow-x:auto;box-shadow:var(--shadow)}
+.tree pre .c{color:var(--ink-3)}
+.tree pre .g{color:var(--adm-ink)}
+.tree pre .k{color:var(--k3s-ink)}
+.roles{display:flex;flex-direction:column;gap:10px;min-width:0}
+.role{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-width:0}
+.role h3{font-size:14.5px;margin-bottom:2px}
+.role p{font-size:14px;color:var(--ink-2)}
+
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-top:14px}
+.flow .st{flex:1 1 150px;min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 12px;position:relative;box-shadow:var(--shadow)}
+.flow .st .n{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);letter-spacing:.06em}
+.flow .st b{display:block;font-family:"IBM Plex Sans Thai",sans-serif;font-weight:600;font-size:15px;margin-top:2px}
+.flow .st p{font-size:13px;color:var(--ink-2);margin-top:4px}
+.flow .st.stop{border-color:var(--warn)}
+.flow .st.stop .n{color:var(--warn)}
+.note{margin-top:12px;font-size:14px;color:var(--ink-2);max-width:80ch}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:14px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0}
+.card h3{margin-bottom:8px}
+.card ul{margin:0;padding-left:18px;font-size:14.5px;color:var(--ink-2)}
+.card li{margin:3px 0}
+.card li b{color:var(--ink);font-weight:500}
+
+@media (max-width:760px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .tree,.cols{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){ a{transition:color .15s} }
+:focus-visible{outline:2px solid var(--k3s);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">aws-ec2-k3s-cloudflared-northhr-rds-prod · PROD</div>
+  <h1 style="margin-top:6px">northhr บน AWS: k3s + Cloudflare Tunnel + RDS</h1>
+  <p class="route"><b>hr_mobile / browser</b> → Cloudflare edge → Tunnel → pod <b>cloudflared</b> → pod <b>bo</b> (hr-bo) / <b>api</b> (hr-api) → <b>RDS</b> PostgreSQL 16 Multi-AZ</p>
+  <p class="lede">โฟลเดอร์นี้คือสคริปต์ 6 ขั้นที่สร้าง environment PROD ทั้งชุดจากศูนย์ ดูแลด้วย <code>verify.sh</code> ขึ้นเวอร์ชันด้วย <code>5_deploy.sh</code> และลบทั้งหมดด้วย <code>6_destroy.sh</code> ทุก resource ติด tag <code>lab=northhr-prod</code> และไม่มี inbound rule จากอินเทอร์เน็ตเลย ทางเข้ามีแค่ Cloudflare (ผู้ใช้) และ SSM (ผู้ดูแล)</p>
+  <div class="kpis">
+    <div class="kpi"><b>hr.nthw.dev</b><span>hr-bo · Next.js back-office</span></div>
+    <div class="kpi"><b>api.hr.nthw.dev</b><span>hr-api · NestJS + Prisma (hr_mobile ใช้ BASE_URL นี้)</span></div>
+    <div class="kpi"><b>3 node</b><span>server t4g.medium + agent t4g.small × 2 (คนละ AZ)</span></div>
+    <div class="kpi"><b>~$4.7 / วัน</b><span>≈ $140 / เดือน รวม RDS Multi-AZ</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head">
+    <h2>เส้นทางของ request และของที่อยู่ใน AWS</h2>
+    <p>ไม่มี load balancer ไม่มี cert ไม่มี NAT: pod cloudflared ต่อ <em>ออก</em> ไปหา Cloudflare ค้างไว้ Cloudflare ส่ง request ของทั้ง 2 โดเมนย้อนมาทาง connection นั้นแล้ว cloudflared ส่งต่อให้ Service ใน cluster ตามกฎ ingress ที่ตั้งไว้ฝั่ง Cloudflare (ขั้น 3)</p>
+  </div>
+  <div class="diagram">
+    <div class="cap"><span class="tag cf">Cloudflare</span><span class="tag k3s">k3s on EC2</span><span class="tag db">RDS</span><span class="tag adm">ผู้ดูแลผ่าน SSM</span></div>
+    <svg viewBox="0 0 1000 520" role="img" aria-label="แผนภาพเส้นทาง request ของ northhr PROD">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+      </defs>
+
+      <!-- users -->
+      <rect class="box" x="16" y="186" width="140" height="62" rx="8"/>
+      <text class="lbl" x="86" y="212" text-anchor="middle">hr_mobile / browser</text>
+      <text class="sub" x="86" y="230" text-anchor="middle">https ทั้งสองโดเมน</text>
+
+      <!-- cloudflare -->
+      <rect class="box cf" x="196" y="166" width="150" height="102" rx="8"/>
+      <text class="lbl" x="271" y="190" text-anchor="middle">Cloudflare edge</text>
+      <text class="sub" x="271" y="208" text-anchor="middle">TLS · WAF · rate limit</text>
+      <text class="sub" x="271" y="224" text-anchor="middle">DNS: hr, api.hr</text>
+      <text class="sub" x="271" y="240" text-anchor="middle">→ &lt;tunnel-id&gt;.cfargotunnel.com</text>
+      <text class="sub" x="271" y="256" text-anchor="middle">Tunnel: northhr-prod</text>
+      <path class="edge in" d="M156,217 L196,217" marker-end="url(#ar)"/>
+
+      <!-- AWS zone -->
+      <rect class="zone" x="386" y="28" width="396" height="400"/>
+      <text class="zlbl" x="398" y="46">no NAT · no inbound SG</text>
+      <text class="zlbl" x="600" y="46">AWS · VPC 10.20.0.0/16</text>
+
+      <!-- AZ a -->
+      <rect class="zone az" x="398" y="58" width="184" height="296"/>
+      <text class="zlbl" x="408" y="74">subnet 10.20.0.0/24 · AZ a</text>
+      <rect class="box node" x="408" y="84" width="164" height="120" rx="8"/>
+      <text class="lbl" x="490" y="104" text-anchor="middle">server · t4g.medium</text>
+      <text class="sub" x="490" y="120" text-anchor="middle">k3s server · EIP · SSM</text>
+      <rect class="box pod cfp" x="418" y="130" width="144" height="18" rx="4"/><text class="pl" x="490" y="143" text-anchor="middle">cloudflared</text>
+      <rect class="box pod" x="418" y="152" width="68" height="18" rx="4"/><text class="pl" x="452" y="165" text-anchor="middle">api</text>
+      <rect class="box pod" x="494" y="152" width="68" height="18" rx="4"/><text class="pl" x="528" y="165" text-anchor="middle">bo</text>
+      <text class="sub" x="490" y="192" text-anchor="middle">+ metrics-server (HPA)</text>
+      <rect class="box node" x="408" y="216" width="164" height="92" rx="8"/>
+      <text class="lbl" x="490" y="236" text-anchor="middle">agent-2 · t4g.small</text>
+      <text class="sub" x="490" y="252" text-anchor="middle">k3s agent · SSM</text>
+      <rect class="box pod cfp" x="418" y="262" width="144" height="18" rx="4"/><text class="pl" x="490" y="275" text-anchor="middle">cloudflared</text>
+      <rect class="box pod" x="418" y="284" width="68" height="18" rx="4"/><text class="pl" x="452" y="297" text-anchor="middle">api</text>
+      <rect class="box pod" x="494" y="284" width="68" height="18" rx="4"/><text class="pl" x="528" y="297" text-anchor="middle">bo</text>
+      <rect class="box db" x="408" y="318" width="164" height="28" rx="6"/>
+      <text class="lbl" x="490" y="337" text-anchor="middle">RDS primary</text>
+
+      <!-- AZ b -->
+      <rect class="zone az" x="590" y="58" width="184" height="296"/>
+      <text class="zlbl" x="600" y="74">subnet 10.20.1.0/24 · AZ b</text>
+      <rect class="box node" x="600" y="84" width="164" height="120" rx="8"/>
+      <text class="lbl" x="682" y="104" text-anchor="middle">agent-1 · t4g.small</text>
+      <text class="sub" x="682" y="120" text-anchor="middle">k3s agent · SSM</text>
+      <rect class="box pod cfp" x="610" y="130" width="144" height="18" rx="4"/><text class="pl" x="682" y="143" text-anchor="middle">cloudflared</text>
+      <rect class="box pod" x="610" y="152" width="68" height="18" rx="4"/><text class="pl" x="644" y="165" text-anchor="middle">api</text>
+      <rect class="box pod" x="686" y="152" width="68" height="18" rx="4"/><text class="pl" x="720" y="165" text-anchor="middle">bo</text>
+      <text class="sub" x="756" y="192" text-anchor="end">spread คนละ node</text>
+      <text class="sub" x="760" y="240" text-anchor="end">HPA api 2–6 · bo 2–4</text>
+      <text class="sub" x="760" y="256" text-anchor="end">cloudflared × 3</text>
+      <text class="sub" x="760" y="272" text-anchor="end">PDB minAvailable 1</text>
+      <rect class="box db" x="600" y="318" width="164" height="28" rx="6"/>
+      <text class="lbl" x="682" y="337" text-anchor="middle">RDS standby (Multi-AZ)</text>
+
+      <!-- tunnel: Cloudflare ↔ cloudflared pods (pod เป็นฝ่ายต่อออก) -->
+      <path class="edge tun" d="M346,200 C380,200 380,139 418,139" marker-start="url(#ar)"/>
+      <path class="edge tun" d="M346,230 C372,230 372,271 418,271" marker-start="url(#ar)"/>
+      <path class="edge tun" d="M346,180 C372,180 372,16 470,16 L580,16 Q586,16 586,22 L586,133 Q586,139 592,139 L610,139" marker-start="url(#ar)"/>
+      <text class="elbl" x="352" y="156">tunnel: pod ต่อออก</text>
+      <text class="elbl" x="352" y="169">Cloudflare ส่งกลับทางนี้</text>
+
+      <!-- api → RDS primary (ผ่าน endpoint; standby รับ replication เท่านั้น) -->
+      <path class="edge db" d="M440,302 C440,312 445,318 452,318" marker-end="url(#ar)"/>
+      <path class="edge db" d="M616,170 C616,262 560,282 560,318" marker-end="url(#ar)"/>
+      <path class="edge db" d="M572,332 L600,332" stroke-dasharray="3 3"/>
+      <text class="elbl" x="576" y="302">5432 · pool 5/pod</text>
+
+      <!-- right side services -->
+      <rect class="box" x="818" y="84" width="166" height="56" rx="8"/>
+      <text class="lbl" x="901" y="106" text-anchor="middle">S3 northhr-prod-files-*</text>
+      <text class="sub" x="901" y="124" text-anchor="middle">presigned URL · IAM user key</text>
+      <path class="edge" d="M764,160 C790,160 790,112 818,112" marker-end="url(#ar)"/>
+
+      <rect class="box" x="818" y="156" width="166" height="46" rx="8"/>
+      <text class="lbl" x="901" y="176" text-anchor="middle">SES / SMTP</text>
+      <text class="sub" x="901" y="192" text-anchor="middle">OTP · reset password</text>
+      <path class="edge" d="M764,166 C790,166 790,179 818,179" marker-end="url(#ar)"/>
+
+      <rect class="box" x="818" y="218" width="166" height="46" rx="8"/>
+      <text class="lbl" x="901" y="238" text-anchor="middle">Docker Hub</text>
+      <text class="sub" x="901" y="254" text-anchor="middle">northhr/hr-api · hr-bo (arm64)</text>
+      <path class="edge out" d="M818,241 C796,241 796,126 764,126" marker-end="url(#ar)"/>
+      <text class="elbl" x="790" y="272" text-anchor="middle">pull ผ่าน IGW</text>
+
+      <rect class="box" x="818" y="280" width="166" height="46" rx="8"/>
+      <text class="lbl" x="901" y="300" text-anchor="middle">SNS → email</text>
+      <text class="sub" x="901" y="316" text-anchor="middle">alarm CPU · storage · memory</text>
+      <path class="edge" d="M764,332 C790,332 790,303 818,303" marker-end="url(#ar)"/>
+
+      <rect class="box adm" x="818" y="354" width="166" height="92" rx="8"/>
+      <text class="lbl" x="901" y="376" text-anchor="middle">macOS ของผู้ดูแล</text>
+      <text class="sub" x="901" y="394" text-anchor="middle">connect_k8s.sh → :16443</text>
+      <text class="sub" x="901" y="410" text-anchor="middle">connect_rds.sh → :15432</text>
+      <text class="sub" x="901" y="426" text-anchor="middle">kubectl · Lens · DBeaver</text>
+      <text class="sub" x="901" y="440" text-anchor="middle">aws sso login (enzodev)</text>
+      <path class="edge adm" d="M818,400 C780,400 586,418 586,354 L586,186 L572,186" marker-end="url(#ar)"/>
+      <text class="elbl" x="700" y="418" text-anchor="middle">SSM session (ไม่มี SSH ไม่มี inbound)</text>
+
+      <!-- captions -->
+      <text class="sub" x="584" y="452" text-anchor="middle">RDS northhr-prod · PostgreSQL 16 · db.t4g.small · 50→100 GB gp3 encrypted · backup 7 วัน (PITR) · deletion protection</text>
+      <text class="sub" x="584" y="470" text-anchor="middle">RDS SG รับ 5432 จาก node SG เท่านั้น · node SG อนุญาตทุกพอร์ตระหว่าง node กันเอง (flannel/kubelet)</text>
+      <text class="sub" x="584" y="488" text-anchor="middle">6443 ไม่เปิด: kubectl/Lens เข้าทาง SSM port-forward 127.0.0.1:16443 · pod ออกเน็ตผ่าน IGW ด้วย public IP ของ node</text>
+      <text class="sub" x="584" y="506" text-anchor="middle">ทุก resource ติด tag lab=northhr-prod · Elastic IP ของ server คงที่ข้าม stop/start</text>
+    </svg>
+    <div class="legend">
+      <span><i class="in"></i>https จากผู้ใช้</span>
+      <span><i class="tun"></i>Cloudflare Tunnel (pod เป็นฝ่ายต่อออก)</span>
+      <span><i class="db"></i>api → RDS</span>
+      <span><i class="out"></i>ขาออกผ่าน IGW</span>
+      <span><i class="adm"></i>ผู้ดูแลผ่าน SSM</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>ติดตั้งครั้งแรก: 6 ขั้นตามลำดับ</h2>
+    <p>ทุกสคริปต์รันซ้ำได้ (ข้ามของที่มีแล้ว) ขั้น 2–5 และเครื่องมือส่วนใหญ่ต้องเปิด <code>./connect_k8s.sh</code> ค้างไว้ในอีก terminal เพราะ kubectl เข้า cluster ผ่าน SSM tunnel เท่านั้น</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>ขั้น</th><th>คำสั่ง</th><th>สร้างอะไร</th><th>ผลที่ได้ในเครื่อง / cluster</th><th>รอ</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td class="mono">./1_create_cluster.sh</td><td>VPC + subnet 2 AZ + IGW · IAM role (SSM) · SG · Elastic IP · EC2 server k3s · agent × <code>AGENT_COUNT</code> join ด้วย node-token ผ่าน SSM</td><td><code>./kubeconfig</code> ชี้ <code>127.0.0.1:16443</code></td><td class="num">5–8 นาที</td></tr>
+      <tr><td class="num">1.5</td><td class="mono">./connect_k8s.sh</td><td>SSM port-forward ไป k3s API (เปิดค้างไว้)</td><td>kubectl / Lens ใช้ได้</td><td class="num">ค้างไว้</td></tr>
+      <tr><td class="num">2</td><td class="mono">./2_create_rds.sh</td><td>DB subnet group · RDS SG (5432 จาก node SG) · RDS Multi-AZ · SNS + CloudWatch alarm ถ้าตั้ง <code>ALARM_EMAIL</code></td><td><code>.db_password</code> · secret <code>rds-credentials</code> (DB_* + <code>POSTGRES_PRISMA_URL</code>)</td><td class="num">15–20 นาที</td></tr>
+      <tr><td class="num">3</td><td class="mono">./3_create_tunnel.sh</td><td>Cloudflare Tunnel · ingress <code>hr → bo:3000</code>, <code>api.hr → api:3000</code> · CNAME 2 ชื่อ</td><td>secret <code>cloudflared-token</code></td><td class="num">1 นาที</td></tr>
+      <tr><td class="num">4</td><td class="mono">./4_create_secrets.sh</td><td>S3 bucket (versioning, block public, lifecycle) · IAM user สิทธิ์เฉพาะ bucket · access key</td><td><code>.s3_access_key</code> · secret <code>app-secrets</code> จาก <code>app-secrets.env</code> + ค่า AWS_*</td><td class="num">1 นาที</td></tr>
+      <tr><td class="num">5</td><td class="mono">APP_TAG=v1.0.0 ./5_deploy.sh</td><td>snapshot RDS → Job migrate → apply <code>k8s/</code> → rollout → curl 2 โดเมน</td><td>Deployment api, bo, cloudflared + HPA + PDB</td><td class="num">2–4 นาที</td></tr>
+      <tr><td class="num">✓</td><td class="mono">./verify.sh</td><td>ตรวจ 6 ชั้น: EC2/node → tunnel → workload → https → RDS → S3/secret</td><td>ผ่าน / ไม่ผ่าน ทีละข้อ</td><td class="num">1 นาที</td></tr>
+      <tr><td class="num">6</td><td class="mono">./6_destroy.sh</td><td>ลบทั้งหมดย้อนลำดับ ต้องพิมพ์ <code>northhr-prod</code> ยืนยัน เก็บ final snapshot และ S3 ไว้เว้นแต่ <code>NO_FINAL_SNAPSHOT=1</code> / <code>DELETE_S3=1</code></td><td>ลบไฟล์ที่สคริปต์สร้าง (ไม่แตะ <code>app-secrets.env</code>)</td><td class="num">10–15 นาที</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>ไฟล์ในโฟลเดอร์</h2>
+    <p>ไฟล์มีเลขนำหน้า = ขั้นบังคับตามลำดับ ไม่มีเลข = เครื่องมือ ทุกสคริปต์เริ่มด้วย <code>source common.sh</code> ซึ่งโหลด <code>.env</code> และตั้ง <code>KUBECONFIG=./kubeconfig</code></p>
+  </div>
+  <div class="tree">
+<pre>aws-ec2-k3s-cloudflared-northhr-rds-prod/
+├── <span class="k">.env</span>                     <span class="c">ค่าคงที่ทั้งหมด VAR=${VAR:-ค่า}</span>
+├── <span class="k">common.sh</span>                <span class="c">ไลบรารีกลาง (lookup, SSM, render, Cloudflare)</span>
+├── 1_create_cluster.sh
+├── 2_create_rds.sh
+├── 3_create_tunnel.sh
+├── 4_create_secrets.sh
+├── 5_deploy.sh              <span class="c">ขึ้นเวอร์ชันใหม่ (รันซ้ำได้)</span>
+├── 6_destroy.sh
+├── verify.sh
+├── rollback.sh              <span class="c">rollout undo api + bo</span>
+├── logs.sh                  <span class="c">api | bo | cloudflared | migrate</span>
+├── add_node.sh              <span class="c">เพิ่ม agent</span>
+├── load_test.sh             <span class="c">ดู HPA ทำงาน</span>
+├── connect_k8s.sh           <span class="c">SSM → 6443 (เปิดค้างไว้)</span>
+├── connect_rds.sh           <span class="c">SSM → RDS:5432</span>
+├── k8s/
+│   ├── api.yaml             <span class="c">Deployment + Service + HPA + PDB</span>
+│   ├── bo.yaml
+│   ├── cloudflared.yaml
+│   └── migrate-job.yaml
+├── app-secrets.env.example  <span class="c">template → คัดลอกเป็น app-secrets.env</span>
+├── README.md
+└── index.html               <span class="c">หน้านี้</span>
+
+<span class="g">สร้างเองตอนรัน (.gitignore):</span>
+<span class="g">kubeconfig  .db_password  .cf_token</span>
+<span class="g">.cf_tunnel_token  .s3_access_key  app-secrets.env</span></pre>
+    <div class="roles">
+      <div class="role"><h3>.env คือที่เดียวที่ตั้งค่า</h3><p>ทุกบรรทัดเขียน <code>VAR=${VAR:-ค่า}</code> ค่าที่ <code>export</code> ใน shell ชนะค่าในไฟล์ เช่น <code>APP_TAG=v1.2.3 ./5_deploy.sh</code> สคริปต์ใช้ <code>set -u</code> ตัวแปรใหม่ต้องมี default ที่นี่</p></div>
+      <div class="role"><h3>k8s/ ไม่อ่าน .env</h3><p>มี placeholder เช่น <code>API_IMAGE_PLACEHOLDER</code> <code>APP_TAG_PLACEHOLDER</code> <code>RDS_SECRET_PLACEHOLDER</code> ที่ฟังก์ชัน <code>render</code> ใน common.sh แทนค่าตอน apply</p></div>
+      <div class="role"><h3>State ไม่เก็บในไฟล์</h3><p>VPC / EC2 / SG / EIP ค้นจาก tag <code>lab=northhr-prod</code> RDS และ IAM ค้นจากชื่อ tunnel ค้นจากชื่อใน Cloudflare ไฟล์ที่เก็บจริงมีแค่รหัสผ่าน token และ kubeconfig</p></div>
+      <div class="role"><h3>app-secrets.env เป็นของคุณ</h3><p>คัดลอกจาก example แล้วใส่ JWT / SMTP / Google Maps ขั้น 4 จะไม่รันถ้ายังมี <code>CHANGE_ME</code> และเติม <code>AWS_*</code>, <code>CORS_ALLOWED_ORIGINS</code> ให้ถ้าไม่ได้ใส่เอง</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>workload ใน cluster และ secret ที่แต่ละตัวได้รับ</h2>
+    <p>ทุกอย่างอยู่ namespace <code>default</code> ชื่อ Service <code>api</code> และ <code>bo</code> ถูกอ้างจากทั้ง ingress ของ tunnel และ <code>BACKEND_API_URL</code> ของ bo</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>workload</th><th>image</th><th>replica</th><th>request / limit</th><th>probe</th><th>env จาก secret</th></tr></thead>
+    <tbody>
+      <tr><td><b>api</b> <span class="dim">hr-api · NestJS</span></td><td class="mono">northhr/hr-api:&lt;tag&gt;</td><td>2 → 6 (HPA CPU 60%)</td><td class="mono">250m / 256Mi · limit 512Mi</td><td class="mono">/api/v1/health :3000</td><td><span class="tag db">rds-credentials</span> <span class="tag k3s">app-secrets</span></td></tr>
+      <tr><td><b>bo</b> <span class="dim">hr-bo · Next.js</span></td><td class="mono">northhr/hr-bo:&lt;tag&gt;</td><td>2 → 4 (HPA CPU 60%)</td><td class="mono">150m / 256Mi · limit 512Mi</td><td class="mono">GET / :3000</td><td><span class="tag k3s">app-secrets</span> + <code>BACKEND_API_URL=http://api:3000</code></td></tr>
+      <tr><td><b>cloudflared</b></td><td class="mono">cloudflare/cloudflared</td><td>3 (anti-affinity คนละ node)</td><td class="mono">50m / 64Mi · limit 128Mi</td><td class="mono">/ready :2000</td><td><span class="tag cf">cloudflared-token</span></td></tr>
+      <tr><td><b>migrate</b> <span class="dim">Job ต่อ release</span></td><td class="mono">northhr/hr-api:&lt;tag&gt;</td><td>1 ครั้ง · backoffLimit 0</td><td class="mono">100m / 128Mi</td><td class="mono">npx prisma migrate deploy</td><td><span class="tag db">rds-credentials</span> <span class="tag k3s">app-secrets</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="tbl"><table>
+    <thead><tr><th>secret</th><th>key</th><th>สร้างโดย</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">rds-credentials</td><td><code>DB_HOST</code> <code>DB_PORT</code> <code>DB_NAME</code> <code>DB_USER</code> <code>DB_PASSWORD</code> <code>POSTGRES_PRISMA_URL</code> <span class="dim">(…?schema=public&amp;connection_limit=5)</span></td><td class="mono">2_create_rds.sh</td></tr>
+      <tr><td class="mono">cloudflared-token</td><td><code>token</code></td><td class="mono">3_create_tunnel.sh</td></tr>
+      <tr><td class="mono">app-secrets</td><td>ทุกบรรทัดใน <code>app-secrets.env</code> + <code>AWS_REGION</code> <code>AWS_ACCESS_KEY_ID</code> <code>AWS_SECRET_ACCESS_KEY</code> <code>AWS_S3_BUCKET</code> <code>CORS_ALLOWED_ORIGINS</code></td><td class="mono">4_create_secrets.sh</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>ขึ้นเวอร์ชันใหม่: <code>APP_TAG=v1.2.3 ./5_deploy.sh</code></h2>
+    <p>ลำดับนี้ทำให้ release ล้มได้โดยไม่กระทบผู้ใช้: migration ล้ม = หยุดก่อน rollout, rollout ล้ม = pod เก่ายังรับ request อยู่ (maxUnavailable 0)</p>
+  </div>
+  <div class="flow">
+    <div class="st"><div class="n">1 · ตรวจ</div><b>secret ครบ 3 ตัว</b><p>rds-credentials, cloudflared-token, app-secrets</p></div>
+    <div class="st"><div class="n">2 · RDS</div><b>snapshot pre-&lt;tag&gt;</b><p>ถ่ายจาก standby ของ Multi-AZ ไม่กระทบ primary · <code>SKIP_SNAPSHOT=1</code> ข้าม</p></div>
+    <div class="st stop"><div class="n">3 · Job · หยุดถ้าล้ม</div><b>migrate</b><p>prisma migrate deploy ด้วย image ใหม่ backoffLimit 0 รอสูงสุด 5 นาที · <code>SKIP_MIGRATE=1</code> ข้าม</p></div>
+    <div class="st"><div class="n">4 · apply</div><b>k8s/api bo cloudflared</b><p>RollingUpdate maxSurge 1 / maxUnavailable 0 + readiness probe</p></div>
+    <div class="st"><div class="n">5 · รอ</div><b>rollout status</b><p>api → bo → cloudflared อย่างละ 180 วินาที</p></div>
+    <div class="st"><div class="n">6 · เช็ก</div><b>curl ผ่าน Cloudflare</b><p>api.hr…/api/v1/health = 200 และ hr… = 200</p></div>
+  </div>
+  <div class="cols">
+    <div class="card"><h3>ย้อนกลับ</h3><ul>
+      <li><b><code>./rollback.sh</code></b> = <code>kubectl rollout undo deploy/api deploy/bo</code> แล้วรอ rollout (image เก่ายังอยู่บน Docker Hub)</li>
+      <li>ถ้า migration เปลี่ยน schema จน code เก่าใช้ไม่ได้ ต้อง restore RDS จาก snapshot <code>pre-&lt;tag&gt;</code> ด้วย สคริปต์พิมพ์คำสั่งให้</li>
+      <li>migration จึงต้อง backward-compatible (expand → migrate → contract) เพราะ pod เก่าและใหม่รันพร้อมกันระหว่าง rolling update</li>
+    </ul></div>
+    <div class="card"><h3>งานประจำ</h3><ul>
+      <li><b>เปลี่ยน secret</b> แก้ <code>app-secrets.env</code> → <code>./4_create_secrets.sh</code> → <code>kubectl rollout restart deploy/api deploy/bo</code></li>
+      <li><b>ดู log</b> <code>./logs.sh api 200</code> · <code>FOLLOW=1 ./logs.sh bo</code> · <code>./logs.sh migrate</code></li>
+      <li><b>เพิ่มเครื่อง</b> <code>./add_node.sh 1</code> แล้วแก้ <code>AGENT_COUNT</code> ใน .env</li>
+      <li><b>ทดสอบ HPA</b> <code>./load_test.sh 120</code> (ก่อนเปิดใช้งานจริง)</li>
+      <li><b>DB</b> <code>./connect_rds.sh</code> แล้ว DBeaver / pg_dump ที่ localhost:15432</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>เปิดทิ้ง 24 ชั่วโมงจ่ายเท่าไร</h2>
+    <p>ราคาโดยประมาณ ap-southeast-1 on-demand ไม่รวม data transfer ออก (Cloudflare ดูดส่วนใหญ่ไว้) และ snapshot ที่เก็บสะสม</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>รายการ</th><th>ขนาด</th><th>$/วัน</th><th>หมายเหตุ</th></tr></thead>
+    <tbody>
+      <tr><td>EC2 server</td><td class="mono">t4g.medium</td><td class="num">≈ 1.0</td><td>k3s server + pod</td></tr>
+      <tr><td>EC2 agent × 2</td><td class="mono">t4g.small</td><td class="num">≈ 1.0</td><td>0.5 ต่อเครื่อง</td></tr>
+      <tr><td>EBS × 3</td><td class="mono">30 GB gp3</td><td class="num">≈ 0.25</td><td>encrypted</td></tr>
+      <tr><td>RDS</td><td class="mono">db.t4g.small Multi-AZ</td><td class="num">≈ 2.2</td><td>Multi-AZ = 2 เท่าของ single-AZ</td></tr>
+      <tr><td>RDS storage + backup</td><td class="mono">50 GB gp3 + 7 วัน</td><td class="num">≈ 0.3</td><td>backup ฟรีเท่าขนาด storage</td></tr>
+      <tr><td>EIP · S3 · SNS · CloudWatch</td><td class="mono">—</td><td class="num">≈ 0.05</td><td>S3 คิดตามไฟล์จริง</td></tr>
+      <tr><td><b>รวม</b></td><td></td><td class="num"><b>≈ 4.7–4.8</b></td><td>≈ $140–145 / เดือน · ประหยัดชั่วคราว: stop EC2 (เหลือ EBS + EIP) หรือ stop RDS (AWS start กลับเองหลัง 7 วัน)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>ต่างจาก lab k3s ตรงไหน</h2>
+    <p>โครง common.sh / .env / tag เดียวกับ <code>../aws-ec2-k3s-cloudflared-app-rds-lab/</code> จึงอ่านสคริปต์ชุดนั้นเข้าใจแล้วมาอ่านชุดนี้ต่อได้</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>lab k3s</th><th>PROD northhr</th></tr></thead>
+    <tbody>
+      <tr><td>node</td><td>server 1 เครื่อง t4g.small</td><td>server t4g.medium + agent × 2 สร้างในขั้น 1 (<code>launch_agents</code> ใช้ร่วมกับ add_node.sh)</td></tr>
+      <tr><td>workload</td><td><code>app</code> 1 ตัว ใน app.yaml</td><td><code>api</code> + <code>bo</code> + <code>cloudflared</code> × 3 + Job <code>migrate</code> ใน k8s/ 4 ไฟล์</td></tr>
+      <tr><td>โดเมน</td><td><code>DOMAIN</code> 1 ชื่อ</td><td><code>DOMAIN_BO</code> + <code>DOMAIN_API</code> ingress 2 กฎ CNAME 2 ชื่อ</td></tr>
+      <tr><td>RDS</td><td>micro single-AZ ไม่ backup ลบทันที</td><td>small Multi-AZ encrypted backup 7 วัน deletion protection snapshot ก่อน migrate final snapshot ตอนลบ</td></tr>
+      <tr><td>secret</td><td>rds-credentials, cloudflared-token</td><td>+ <code>POSTGRES_PRISMA_URL</code>, + <code>app-secrets</code> จากไฟล์ของคุณ</td></tr>
+      <tr><td>อื่นๆ</td><td>—</td><td>S3 + IAM user, SNS/alarm, rollback.sh, logs.sh, destroy ต้องพิมพ์ชื่อยืนยัน</td></tr>
+      <tr><td>aws_audit.sh</td><td>กลุ่ม lab 2</td><td>กลุ่ม <code>stack:northhr-prod</code> ห้ามลบด้วย destroy_stack.sh (ไม่รู้จัก deletion protection / S3 / SNS / IAM user)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+</div>
+</body>
+</html>
